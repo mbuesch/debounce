@@ -22,6 +22,12 @@
 typedef _Bool			bool;
 
 
+/* Pin for timer testing. Only if compiled with debugging support. */
+#define TIMER_TEST_PORT		PORTC
+#define TIMER_TEST_DDR		DDRC
+#define TIMER_TEST_BIT		5
+
+
 #define DEBOUNCE_DWELL_TIME	10 /* centiseconds */
 
 #if DEBUG
@@ -116,59 +122,16 @@ struct connection {
 	}
 #define NONE	0
 
-static DEF_OUTPUT(B, 0, NONE);
-static DEF_OUTPUT(D, 7, NONE);
-static DEF_OUTPUT(D, 6, NONE);
-static DEF_OUTPUT(D, 5, NONE);
-static DEF_OUTPUT(D, 4, NONE);
-static DEF_OUTPUT(D, 3, NONE);
-static DEF_OUTPUT(D, 2, NONE);
-static DEF_OUTPUT(D, 1, NONE);
-static DEF_OUTPUT(D, 0, NONE);
 
-static struct connection connections[] = {
-	{ /* B1 -> B0 */
-		DEF_INPUT(B, 1, INPUT_PULLUP),
-		.out = &output_pin_B0,
-	},
-	{ /* B2 -> D7 */
-		DEF_INPUT(B, 2, INPUT_PULLUP),
-		.out = &output_pin_D7,
-	},
-	{ /* B3 -> D6 */
-		DEF_INPUT(B, 3, INPUT_PULLUP),
-		.out = &output_pin_D6,
-	},
-	{ /* B4 -> D5 */
-		DEF_INPUT(B, 4, INPUT_PULLUP),
-		.out = &output_pin_D5,
-	},
-	{ /* C0 -> D4 */
-		DEF_INPUT(C, 0, INPUT_PULLUP),
-		.out = &output_pin_D4,
-	},
-	{ /* C1 -> D3 */
-		DEF_INPUT(C, 1, INPUT_PULLUP),
-		.out = &output_pin_D3,
-	},
-	{ /* C2 -> D2 */
-		DEF_INPUT(C, 2, INPUT_PULLUP),
-		.out = &output_pin_D2,
-	},
-	{ /* C3 -> D1 */
-		DEF_INPUT(C, 3, INPUT_PULLUP),
-		.out = &output_pin_D1,
-	},
-	{ /* C4 -> D0 */
-		DEF_INPUT(C, 4, INPUT_PULLUP),
-		.out = &output_pin_D0,
-	},
-};
 
-/* Pin for timer testing. Only if compiled with debugging support. */
-#define TIMER_TEST_PORT		PORTC
-#define TIMER_TEST_DDR		DDRC
-#define TIMER_TEST_BIT		5
+#if TARGET==0
+# include "target_cncjoints.c"
+#else
+# error "You must define a valid build target!"
+# error "Example:  make TARGET=0"
+# error "See  make help  for more information"
+#endif
+
 
 
 #define MMIO8(mem_addr)		_MMIO_BYTE((uint16_t)(mem_addr))

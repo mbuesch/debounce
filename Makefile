@@ -13,7 +13,8 @@ SIZE		= avr-size
 
 CFLAGS		= -mmcu=$(ARCH) -std=c99 -g0 -O2 -fomit-frame-pointer -Wall -fpack-struct
 CFLAGS		+= "-Dinline=inline __attribute__((__always_inline__))"
-CFLAGS		+= -DDEBUG=$(DEBUG)
+TARGET		?= 0 # default
+CFLAGS		+= -DDEBUG=$(DEBUG) -DTARGET=$(TARGET)
 
 
 # The fuse bits
@@ -26,6 +27,8 @@ HEX	= debounce.hex
 EEP	= debounce.eep.hex
 
 all: $(HEX)
+
+main.o: target_cncjoints.c
 
 %.s: %.c
 	$(CC) $(CFLAGS) -S $*.c
@@ -74,16 +77,20 @@ distclean: clean
 help:
 	@echo "Debouncer Makefile"
 	@echo ""
-	@echo "Targets:"
+	@echo "BUILD TARGETS  (make TARGET=x):"
+	@echo "  TARGET=0 - Build target for \"cncjoints\""
+	@echo ""
+	@echo ""
+	@echo "Cleanup:"
 	@echo "  all       - build the firmware (default target)"
 	@echo "  clean     - remove object files"
 	@echo "  distclean - remove object, binary and hex files"
 	@echo ""
-	@echo "Targets that operate on the device through avrdude:"
+	@echo "avrdude operations:"
 	@echo "  install   - flash the program code"
 	@echo "  writefuse - write the fuse bits"
 	@echo "  reset     - pull the external device reset pin"
 	@echo "  avrdude   - run avrdude in interactive mode"
 	@echo ""
-	@echo "Generic targets:"
+	@echo "Generic:"
 	@echo "  *.s       - create an assembly file from a *.c file"
