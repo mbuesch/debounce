@@ -1,7 +1,7 @@
 DEBUG		?= 0
 
-ARCH		?= atmega8
-AVRDUDE_ARCH	?= m8
+ARCH		?= atmega88
+AVRDUDE_ARCH	?= m88
 AVRDUDE		?= avrdude
 AVRDUDE_SPEED	?= 1
 PROGRAMMER	?= avrisp2
@@ -18,8 +18,9 @@ CFLAGS		+= -DDEBUG=$(DEBUG) -DTARGET=$(TARGET)
 
 
 # The fuse bits
-LFUSE	= 0x20
-HFUSE	= 0xD9
+LFUSE	= 0xE0
+HFUSE	= 0xDC
+EFUSE	= 0xF9
 
 OBJECTS = main.o
 BIN	= debounce.bin
@@ -66,7 +67,8 @@ writefuse:
 	$(AVRDUDE) -B $(AVRDUDE_SPEED) -p $(AVRDUDE_ARCH) \
 	 -c $(PROGRAMMER) -P $(PROGPORT) -q -q \
 	 -U lfuse:w:$(LFUSE):m \
-	 -U hfuse:w:$(HFUSE):m
+	 -U hfuse:w:$(HFUSE):m \
+	 -U efuse:w:$(EFUSE):m
 
 clean:
 	-rm -f *~ *.o $(BIN)

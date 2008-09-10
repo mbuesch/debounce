@@ -7,13 +7,6 @@ static DEF_OUTPUT(B, 0, NONE); /* Joint limits common */
 static DEF_OUTPUT(D, 7, NONE); /* X joint REF */
 static DEF_OUTPUT(D, 6, NONE); /* Y joint REF */
 static DEF_OUTPUT(D, 5, NONE); /* Z joint REF */
-#if 0
-static DEF_OUTPUT(D, 4, NONE);
-static DEF_OUTPUT(D, 3, NONE);
-static DEF_OUTPUT(D, 2, NONE);
-static DEF_OUTPUT(D, 1, NONE);
-static DEF_OUTPUT(D, 0, NONE);
-#endif
 
 static struct connection connections[] = {
 	{ /* X+ joint limit input --> Joint limits common output */

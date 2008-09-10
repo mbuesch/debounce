@@ -1,6 +1,8 @@
 /*
  * Signal debouncer
  *
+ * This code is designed to run on an ATmega88 with 20MHz clock.
+ *
  * Copyright (c) 2008 Michael Buesch <mb@bu3sch.de>
  *
  * Licensed under the GNU General Public License version 2 or later.
@@ -46,9 +48,9 @@ typedef _Bool			bool;
  * @flags:		See enum input_pin_flags.
  */
 struct input_pin {
-	uint8_t input_port;
-	uint8_t input_pin;
-	uint8_t input_ddr;
+	uint16_t input_port;
+	uint16_t input_pin;
+	uint16_t input_ddr;
 	uint8_t input_bit;
 	uint8_t flags;
 };
@@ -72,8 +74,8 @@ enum input_pin_flags {
  * @flags:		See enum output_pin_flags.
  */
 struct output_pin {
-	uint8_t output_port;
-	uint8_t output_ddr;
+	uint16_t output_port;
+	uint16_t output_ddr;
 	uint8_t output_bit;
 	uint8_t flags;
 
@@ -134,7 +136,7 @@ struct connection {
 
 
 
-#define MMIO8(mem_addr)		_MMIO_BYTE((uint16_t)(mem_addr))
+#define MMIO8(mem_addr)		_MMIO_BYTE(mem_addr)
 
 
 /* Set the hardware state of an output pin. */
@@ -273,16 +275,16 @@ ISR(TIMER1_COMPA_vect)
 #endif
 }
 
-/* System timer calibration. Calibrated to 100Hz (16Mhz crystal) */
+/* System timer calibration. Calibrated to 100Hz (20Mhz crystal) */
 #define SYSTIMER_TIMERFREQ	((1 << CS10) | (1 << CS12)) /* == CPU_HZ/1024 */
-#define SYSTIMER_CMPVAL		156
+#define SYSTIMER_CMPVAL		195
 
 static void setup_jiffies(void)
 {
 	/* Initialize the system timer */
 	TCCR1B = (1 << WGM12) | SYSTIMER_TIMERFREQ; /* Speed */
 	OCR1A = SYSTIMER_CMPVAL; /* CompareMatch value */
-	TIMSK |= (1 << OCIE1A); /* IRQ mask */
+	TIMSK1 |= (1 << OCIE1A); /* IRQ mask */
 }
 
 int main(void)
