@@ -46,3 +46,11 @@ static struct connection connections[] = {
 		.out = &output_pin_C2,
 	},
 };
+
+/* Pin for timer testing. */
+#define TIMER_TEST_PORT		PORTB
+#define TIMER_TEST_DDR		DDRB
+#define TIMER_TEST_BIT		1
+
+/* Debounce timing. */
+#define DEBOUNCE_DWELL_TIME	10 /* centiseconds */

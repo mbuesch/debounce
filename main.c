@@ -24,20 +24,6 @@
 typedef _Bool			bool;
 
 
-/* Pin for timer testing. Only if compiled with debugging support. */
-#define TIMER_TEST_PORT		PORTC
-#define TIMER_TEST_DDR		DDRC
-#define TIMER_TEST_BIT		5
-
-
-#define DEBOUNCE_DWELL_TIME	10 /* centiseconds */
-
-#if DEBUG
-# undef DEBOUNCE_DWELL_TIME
-# define DEBOUNCE_DWELL_TIME	200
-#endif
-
-
 /**
  * struct input_pin - An input pin definition
  *
@@ -134,7 +120,10 @@ struct connection {
 # error "See  make help  for more information"
 #endif
 
-
+#if DEBUG
+# undef DEBOUNCE_DWELL_TIME
+# define DEBOUNCE_DWELL_TIME	200
+#endif
 
 #define MMIO8(mem_addr)		_MMIO_BYTE(mem_addr)
 
