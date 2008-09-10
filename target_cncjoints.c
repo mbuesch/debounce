@@ -3,46 +3,46 @@
  * for the joint-switches of a CNC machining center.
  */
 
-static DEF_OUTPUT(B, 0, NONE); /* Joint limits common */
-static DEF_OUTPUT(D, 7, NONE); /* X joint REF */
-static DEF_OUTPUT(D, 6, NONE); /* Y joint REF */
-static DEF_OUTPUT(D, 5, NONE); /* Z joint REF */
+static DEF_OUTPUT(C, 5, NONE); /* Joint limits common */
+static DEF_OUTPUT(C, 4, NONE); /* X joint REF */
+static DEF_OUTPUT(C, 3, NONE); /* Y joint REF */
+static DEF_OUTPUT(C, 2, NONE); /* Z joint REF */
 
 static struct connection connections[] = {
 	{ /* X+ joint limit input --> Joint limits common output */
-		DEF_INPUT(B, 1, INPUT_PULLUP),
-		.out = &output_pin_B0,
+		DEF_INPUT(D, 0, INPUT_PULLUP),
+		.out = &output_pin_C5,
 	},
 	{ /* X- joint limit input --> Joint limits common output */
-		DEF_INPUT(B, 2, INPUT_PULLUP),
-		.out = &output_pin_B0,
+		DEF_INPUT(D, 1, INPUT_PULLUP),
+		.out = &output_pin_C5,
 	},
 	{ /* X joint REF input --> X joint REF output */
-		DEF_INPUT(B, 3, INPUT_PULLUP),
-		.out = &output_pin_D7,
+		DEF_INPUT(D, 2, INPUT_PULLUP),
+		.out = &output_pin_C4,
 	},
 	{ /* Y+ joint limit input --> Joint limits common output */
-		DEF_INPUT(B, 4, INPUT_PULLUP),
-		.out = &output_pin_B0,
+		DEF_INPUT(D, 3, INPUT_PULLUP),
+		.out = &output_pin_C5,
 	},
 	{ /* Y- joint limit input --> Joint limits common output */
-		DEF_INPUT(C, 0, INPUT_PULLUP),
-		.out = &output_pin_B0,
+		DEF_INPUT(D, 4, INPUT_PULLUP),
+		.out = &output_pin_C5,
 	},
 	{ /* Y joint REF input --> Y joint REF output */
-		DEF_INPUT(C, 1, INPUT_PULLUP),
-		.out = &output_pin_D6,
+		DEF_INPUT(D, 5, INPUT_PULLUP),
+		.out = &output_pin_C3,
 	},
 	{ /* Z+ joint limit input --> Joint limits common output */
-		DEF_INPUT(C, 2, INPUT_PULLUP),
-		.out = &output_pin_B0,
+		DEF_INPUT(D, 6, INPUT_PULLUP),
+		.out = &output_pin_C5,
 	},
 	{ /* Z- joint limit input --> Joint limits common output */
-		DEF_INPUT(C, 3, INPUT_PULLUP),
-		.out = &output_pin_B0,
+		DEF_INPUT(D, 7, INPUT_PULLUP),
+		.out = &output_pin_C5,
 	},
 	{ /* Z joint REF input --> Z joint REF output */
-		DEF_INPUT(C, 4, INPUT_PULLUP),
-		.out = &output_pin_D5,
+		DEF_INPUT(B, 0, INPUT_PULLUP),
+		.out = &output_pin_C2,
 	},
 };
