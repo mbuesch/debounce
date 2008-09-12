@@ -256,12 +256,7 @@ ISR(TIMER1_COMPA_vect)
 		}
 	}
 
-	/* Timer debugging: In debugging mode, put a signal on the I/O pin
-	 * for testing the timer frequency with an oscilloscope. */
-#if DEBUG
-	TIMER_TEST_DDR |= (1 << TIMER_TEST_BIT);
 	TIMER_TEST_PORT ^= (1 << TIMER_TEST_BIT);
-#endif
 }
 
 /* System timer calibration. Calibrated to 100Hz (20Mhz crystal) */
@@ -279,6 +274,7 @@ static void setup_jiffies(void)
 int main(void)
 {
 	cli();
+
 #if !DEBUG
 	wdt_enable(WDTO_500MS);
 #endif
@@ -286,6 +282,7 @@ int main(void)
 
 	setup_jiffies();
 	setup_ports();
+	TIMER_TEST_DDR |= (1 << TIMER_TEST_BIT);
 
 	sei();
 
