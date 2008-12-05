@@ -204,7 +204,8 @@ ISR(TIMER1_OVF_vect)
 
 static uint32_t get_jiffies(void)
 {
-	uint32_t low, high;
+	uint16_t low;
+	uint32_t high;
 
 	/* We protect against (unlikely) overflow-while-read. */
 	cli();
