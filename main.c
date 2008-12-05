@@ -149,6 +149,18 @@ struct connection {
 #define USEC_TO_MSEC(usec)	U64(U64(usec) / U64(1000))
 #define MSEC_TO_USEC(msec)	U64(U64(msec) * U64(1000))
 
+/* Jiffies timing helpers derived from the Linux Kernel sources.
+ * These inlines deal with timer wrapping correctly.
+ *
+ * time_after(a, b) returns true if the time a is after time b.
+ *
+ * Do this with "<0" and ">=0" to only test the sign of the result. A
+ * good compiler would generate better code (and a really good compiler
+ * wouldn't care). Gcc is currently neither.
+ */
+#define time_after(a, b)	((int32_t)(b) - (int32_t)(a) < 0)
+#define time_before(a, b)	time_after(b, a)
+
 /* Upper 16-bit half of the jiffies counter.
  * The lower half is the hardware timer counter.
  * We keep this in a 32bit variable to avoid the need for bitshifting
@@ -168,6 +180,7 @@ static inline uint32_t get_jiffies(void)
 	return (TCNT1 | jiffies_high16);
 }
 
+//TODO: We could probably do this with the overflow IRQ.
 static inline void jiffies_maintanance(void)
 {
 	uint16_t low16;
@@ -176,7 +189,8 @@ static inline void jiffies_maintanance(void)
 	/* Check for a carry in the low 16bits (hardware counter)
 	 * and increment the high software part in case it overflew.
 	 * This is based on the assumption that this function is
-	 * called at least once per possible overflow interval. */
+	 * called at least once per possible overflow interval.
+	 * That means we must ensure a call every 20 ms (or more often). */
 	low16 = TCNT1;
 	if (low16 < last_low16) {
 		/* Carry detected */
@@ -185,17 +199,22 @@ static inline void jiffies_maintanance(void)
 	last_low16 = low16;
 }
 
-/* Jiffies timing helpers derived from the Linux Kernel sources.
- * These inlines deal with timer wrapping correctly.
- *
- * time_after(a, b) returns true if the time a is after time b.
- *
- * Do this with "<0" and ">=0" to only test the sign of the result. A
- * good compiler would generate better code (and a really good compiler
- * wouldn't care). Gcc is currently neither.
- */
-#define time_after(a, b)	((int32_t)(b) - (int32_t)(a) < 0)
-#define time_before(a, b)	time_after(b, a)
+/* Put a 5ms signal onto the test pin. */
+static inline void jiffies_test(void)
+{
+	uint32_t now, next;
+
+	now = get_jiffies();
+	next = now + MSEC_TO_JIFFIES(5);
+	while (1) {
+		jiffies_maintanance();
+		now = get_jiffies();
+		if (time_after(now, next)) {
+			TIMER_TEST_PORT ^= (1 << TIMER_TEST_BIT);
+			next = now + MSEC_TO_JIFFIES(5);
+		}
+	}
+}
 
 /* Set the hardware state of an output pin. */
 static inline void output_hw_set(struct output_pin *out, bool state)
@@ -328,14 +347,15 @@ int main(void)
 	}
 #endif
 
+	TIMER_TEST_DDR |= (1 << TIMER_TEST_BIT);
 #if !DEBUG
 	wdt_enable(WDTO_500MS);
 #endif
 	wdt_reset();
 
 	setup_jiffies();
+	jiffies_test();
 	setup_ports();
-	TIMER_TEST_DDR |= (1 << TIMER_TEST_BIT);
 
 	scan_input_pins();
 }
