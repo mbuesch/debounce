@@ -146,8 +146,8 @@ struct connection {
 #define MSEC_TO_JIFFIES(msec)	U32(U64(msec) * JIFFIES_PER_SECOND / U64(1000))
 #define USEC_TO_JIFFIES(usec)	U32(U64(usec) * JIFFIES_PER_SECOND / U64(1000000))
 /* Convert time values. (Expensive on non-const values!) */
-#define USEC_TO_MSEC(usec)	U32(U64(usec) / U64(1000))
-#define MSEC_TO_USEC(msec)	U32(U64(msec) * U64(1000))
+#define USEC_TO_MSEC(usec)	U64(U64(usec) / U64(1000))
+#define MSEC_TO_USEC(msec)	U64(U64(msec) * U64(1000))
 
 /* Upper 16-bit half of the jiffies counter.
  * The lower half is the hardware timer counter.
