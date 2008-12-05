@@ -16,11 +16,6 @@
 
 #define ARRAY_SIZE(x)		(sizeof(x) / sizeof((x)[0]))
 
-/* Memory barrier.
-* The CPU doesn't have runtime reordering, so we just
-* need a compiler memory clobber. */
-#define mb()			__asm__ __volatile__("" : : : "memory")
-
 typedef _Bool			bool;
 
 
@@ -88,8 +83,7 @@ struct connection {
 	struct output_pin *out;
 
 	bool input_is_asserted;
-	bool output_is_asserted;
-	uint8_t dwell_time;
+	uint32_t dwell_timeout;
 };
 
 #define DEF_INPUT(portid, bit, _flags)				\
@@ -122,11 +116,72 @@ struct connection {
 
 #if DEBUG
 # undef DEBOUNCE_DWELL_TIME
-# define DEBOUNCE_DWELL_TIME	200
+# define DEBOUNCE_DWELL_TIME	MSEC_TO_USEC(2000)
+# undef DEBOUNCE_ACTIVE_TIME
+# define DEBOUNCE_ACTIVE_TIME	MSEC_TO_USEC(1000)
 #endif
 
 #define MMIO8(mem_addr)		_MMIO_BYTE(mem_addr)
 
+
+
+/* System timer calibration. Calibrated for a 20Mhz crystal. */
+#define SYSTIMER_TIMERFREQ	(1 << CS11) /* == CPU_HZ/8 */
+#define JIFFIES_PER_SECOND	250000ul
+/* Convert constant(!) values to jiffies */
+#define MSEC_TO_JIFFIES(msec)	((uint32_t)((msec) * JIFFIES_PER_SECOND / 1000ul))
+#define USEC_TO_JIFFIES(usec)	((uint32_t)((usec) * JIFFIES_PER_SECOND / 1000000ul))
+/* Convert constant(!) time values. */
+#define USEC_TO_MSEC(usec)	((uint32_t)((usec) / 1000ul))
+#define MSEC_TO_USEC(msec)	((uint32_t)((msec) * 1000ul))
+
+/* Upper 16-bit half of the jiffies counter.
+ * The lower half is the hardware timer counter.
+ * We keep this in a 32bit variable to avoid the need for bitshifting
+ * in get_jiffies(). (Bitshift>1 is expensive on AVR).
+ * So the lower 16 bits of jiffies_high16 will always be zero. */
+static uint32_t jiffies_high16;
+
+static void setup_jiffies(void)
+{
+	/* Initialize the system timer */
+	TCCR1A = 0;
+	TCCR1B = SYSTIMER_TIMERFREQ; /* Speed */
+}
+
+static inline uint32_t get_jiffies(void)
+{
+	return (TCNT1 | jiffies_high16);
+}
+
+static inline void jiffies_maintanance(void)
+{
+	uint16_t low16;
+	static uint16_t last_low16;
+
+	/* Check for a carry in the low 16bits (hardware counter)
+	 * and increment the high software part in case it overflew.
+	 * This is based on the assumption that this function is
+	 * called at least once per possible overflow interval. */
+	low16 = TCNT1;
+	if (low16 < last_low16) {
+		/* Carry detected */
+		jiffies_high16 += 0x10000ul;
+	}
+	last_low16 = low16;
+}
+
+/* Jiffies timing helpers derived from the Linux Kernel sources.
+ * These inlines deal with timer wrapping correctly.
+ *
+ * time_after(a, b) returns true if the time a is after time b.
+ *
+ * Do this with "<0" and ">=0" to only test the sign of the result. A
+ * good compiler would generate better code (and a really good compiler
+ * wouldn't care). Gcc is currently neither.
+ */
+#define time_after(a, b)	((int32_t)(b) - (int32_t)(a) < 0)
+#define time_before(a, b)	time_after(b, a)
 
 /* Set the hardware state of an output pin. */
 static inline void output_hw_set(struct output_pin *out, bool state)
@@ -159,6 +214,7 @@ static void setup_ports(void)
 {
 	struct connection *conn;
 	uint8_t i;
+	uint32_t now = get_jiffies();
 
 	for (i = 0; i < ARRAY_SIZE(connections); i++) {
 		conn = &(connections[i]);
@@ -166,7 +222,6 @@ static void setup_ports(void)
 		/* Init DDR registers */
 		MMIO8(conn->in.input_ddr) &= ~(1 << conn->in.input_bit);
 		MMIO8(conn->out->output_ddr) |= (1 << conn->out->output_bit);
-		conn->input_is_asserted = 0;
 
 		/* Enable/Disable pullup */
 		if (conn->in.flags & INPUT_PULLUP)
@@ -176,14 +231,17 @@ static void setup_ports(void)
 
 		/* Disable output signal */
 		conn->out->level = 0;
-		conn->output_is_asserted = 0;
 		output_hw_set(conn->out, 0);
+
+		conn->input_is_asserted = 0;
+		conn->dwell_timeout = now + USEC_TO_JIFFIES(DEBOUNCE_ACTIVE_TIME);
 	}
 }
 
 static void scan_one_input_pin(struct connection *conn)
 {
 	uint8_t hw_input_asserted;
+	uint32_t now = get_jiffies();
 
 	/* Get the input state */
 	hw_input_asserted = (MMIO8(conn->in.input_pin) & (1 << conn->in.input_bit));
@@ -198,35 +256,34 @@ static void scan_one_input_pin(struct connection *conn)
 
 	if (conn->input_is_asserted) {
 		/* Signal currently is asserted in software.
-		 * Wait for the dwell time... */
-		cli();
+		 * Try to detect !hw_input_asserted, but honor the dwell time. */
 		if (hw_input_asserted) {
-			/* The hardware pin is still active,
-			 * restart the dwell time. */
-			conn->dwell_time = 0;
+			/* The hardware pin is still active.
+			 * Restart the dwell time. */
+			conn->dwell_timeout = now + USEC_TO_JIFFIES(DEBOUNCE_DWELL_TIME);
 		}
-		if (conn->dwell_time < DEBOUNCE_DWELL_TIME) {
-			sei();
+		if (hw_input_asserted || time_before(now, conn->dwell_timeout)) {
 			/* wait... */
 			return;
 		}
 		conn->input_is_asserted = 0;
-		sei();
-	}
-
-	if (hw_input_asserted) {
-		if (!conn->output_is_asserted) {
-			conn->output_is_asserted = 1;
-			output_level_inc(conn->out);
-		}
-		conn->dwell_time = 0;
-		mb();
-		conn->input_is_asserted = 1;
+		output_level_dec(conn->out);
+		conn->dwell_timeout = now + USEC_TO_JIFFIES(DEBOUNCE_ACTIVE_TIME);
 	} else {
-		if (conn->output_is_asserted) {
-			conn->output_is_asserted = 0;
-			output_level_dec(conn->out);
+		/* Signal currently is _not_ asserted in software.
+		 * Try to detect hw_input_asserted, but honor the dwell time. */
+		if (!hw_input_asserted) {
+			/* The hardware pin still isn't active.
+			 * Restart the dwell time. */
+			conn->dwell_timeout = now + USEC_TO_JIFFIES(DEBOUNCE_ACTIVE_TIME);
 		}
+		if (!hw_input_asserted || time_before(now, conn->dwell_timeout)) {
+			/* wait... */
+			return;
+		}
+		conn->input_is_asserted = 1;
+		output_level_inc(conn->out);
+		conn->dwell_timeout = now + USEC_TO_JIFFIES(DEBOUNCE_DWELL_TIME);
 	}
 }
 
@@ -236,39 +293,11 @@ static void scan_input_pins(void)
 
 	while (1) {
 		for (i = 0; i < ARRAY_SIZE(connections); i++) {
+			jiffies_maintanance();
 			scan_one_input_pin(&(connections[i]));
 			wdt_reset();
 		}
 	}
-}
-
-/* System jiffies timer at 100Hz */
-ISR(TIMER1_COMPA_vect)
-{
-	struct connection *conn;
-	uint8_t i;
-
-	for (i = 0; i < ARRAY_SIZE(connections); i++) {
-		conn = &(connections[i]);
-		if (conn->input_is_asserted) {
-			if (conn->dwell_time < 0xFF)
-				conn->dwell_time++;
-		}
-	}
-
-	TIMER_TEST_PORT ^= (1 << TIMER_TEST_BIT);
-}
-
-/* System timer calibration. Calibrated to 100Hz (20Mhz crystal) */
-#define SYSTIMER_TIMERFREQ	((1 << CS10) | (1 << CS12)) /* == CPU_HZ/1024 */
-#define SYSTIMER_CMPVAL		195
-
-static void setup_jiffies(void)
-{
-	/* Initialize the system timer */
-	TCCR1B = (1 << WGM12) | SYSTIMER_TIMERFREQ; /* Speed */
-	OCR1A = SYSTIMER_CMPVAL; /* CompareMatch value */
-	TIMSK1 |= (1 << OCIE1A); /* IRQ mask */
 }
 
 int main(void)
@@ -283,8 +312,6 @@ int main(void)
 	setup_jiffies();
 	setup_ports();
 	TIMER_TEST_DDR |= (1 << TIMER_TEST_BIT);
-
-	sei();
 
 	scan_input_pins();
 }
