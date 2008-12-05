@@ -1,7 +1,7 @@
 /*
  * Signal debouncer
  *
- * This code is designed to run on an ATmega88 with 20MHz or 16MHz clock.
+ * This code is designed to run on an ATmega8/88 with 20MHz or 16MHz clock.
  *
  * Copyright (c) 2008 Michael Buesch <mb@bu3sch.de>
  *
@@ -22,7 +22,13 @@
 
 /* Compat */
 #ifdef MCUCSR
-# define MCUSR	MCUCSR
+# define MCUSR		MCUCSR
+#endif
+#ifdef TIMSK
+# define TIMSK1		TIMSK
+#endif
+#ifdef TIFR
+# define TIFR1		TIFR
 #endif
 
 /* Memory barrier.
@@ -183,45 +189,38 @@ static void setup_jiffies(void)
 	/* Initialize the system timer */
 	TCCR1A = 0;
 	TCCR1B = SYSTIMER_TIMERFREQ; /* Speed */
+	TIMSK1 |= (1 << TOIE1); /* Overflow IRQ */
 }
 
-//TODO: We could probably do this with the overflow IRQ.
-static inline bool jiffies_maintanance(void)
+static inline void handle_jiffies_low16_overflow(void)
 {
-	bool overflow = 0;
-	uint16_t low16;
-	static uint16_t last_low16;
+	jiffies_high16 += 0x10000ul;
+}
 
-	/* Check for a carry in the low 16bits (hardware counter)
-	 * and increment the high software part in case it overflew.
-	 * This is based on the assumption that this function is
-	 * called at least once per possible overflow interval.
-	 * That means we must ensure a call every 20 ms (or more often). */
-	low16 = TCNT1;
-	if (low16 < last_low16) {
-		/* Carry detected */
-		jiffies_high16 += 0x10000ul;
-		overflow = 1;
-	}
-	last_low16 = low16;
-
-	return overflow;
+ISR(TIMER1_OVF_vect)
+{
+	handle_jiffies_low16_overflow();
 }
 
 static uint32_t get_jiffies(void)
 {
 	uint32_t low, high;
 
-	/* Protect against (unlikely) overflow-while-read. */
-	jiffies_maintanance();
+	/* We protect against (unlikely) overflow-while-read. */
+	cli();
 	while (1) {
+		if (TIFR1 & (1 << TOV1)) {
+			handle_jiffies_low16_overflow();
+			TIFR1 |= (1 << TOV1); /* Clear it */
+		}
 		mb();
 		low = TCNT1;
 		high = jiffies_high16;
 		mb();
-		if (!jiffies_maintanance())
+		if (!(TIFR1 & (1 << TOV1)))
 			break; /* No overflow */
 	}
+	sei();
 
 	return (low | high);
 }
@@ -231,11 +230,11 @@ static inline void jiffies_test(void)
 {
 	uint32_t now, next;
 
+	sei();
 	now = get_jiffies();
 	next = now + MSEC_TO_JIFFIES(5);
 	while (1) {
 		wdt_reset();
-		jiffies_maintanance();
 		now = get_jiffies();
 		if (time_after(now, next)) {
 			TIMER_TEST_PORT ^= (1 << TIMER_TEST_BIT);
@@ -354,7 +353,6 @@ static void scan_input_pins(void)
 
 	while (1) {
 		for (i = 0; i < ARRAY_SIZE(connections); i++) {
-			jiffies_maintanance();
 			scan_one_input_pin(&(connections[i]));
 			wdt_reset();
 		}
@@ -390,5 +388,6 @@ int main(void)
 //	jiffies_test();
 	setup_ports();
 
+	sei();
 	scan_input_pins();
 }
