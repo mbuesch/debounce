@@ -1,7 +1,7 @@
 /*
  * Signal debouncer
  *
- * This code is designed to run on an ATmega88 with 20MHz clock.
+ * This code is designed to run on an ATmega88 with 20MHz or 16MHz clock.
  *
  * Copyright (c) 2008 Michael Buesch <mb@bu3sch.de>
  *
@@ -13,8 +13,12 @@
 #include <avr/interrupt.h>
 #include <avr/wdt.h>
 
+//#define CPU_HZ			MHz(20)
+#define CPU_HZ			MHz(16)
+
 
 #define ARRAY_SIZE(x)		(sizeof(x) / sizeof((x)[0]))
+#define MHz(hz)			(1000000ul * (hz))
 
 typedef _Bool			bool;
 
@@ -114,26 +118,36 @@ struct connection {
 # error "See  make help  for more information"
 #endif
 
+/* Override dwell times in debugging mode. */
 #if DEBUG
 # undef DEBOUNCE_DWELL_TIME
-# define DEBOUNCE_DWELL_TIME	MSEC_TO_USEC(2000)
+# define DEBOUNCE_DWELL_TIME	MSEC_TO_USEC(4000)
 # undef DEBOUNCE_ACTIVE_TIME
-# define DEBOUNCE_ACTIVE_TIME	MSEC_TO_USEC(1000)
+# define DEBOUNCE_ACTIVE_TIME	MSEC_TO_USEC(2000)
 #endif
 
 #define MMIO8(mem_addr)		_MMIO_BYTE(mem_addr)
+#define U32(value)		((uint32_t)(value))
+#define U64(value)		((uint64_t)(value))
 
 
 
-/* System timer calibration. Calibrated for a 20Mhz crystal. */
-#define SYSTIMER_TIMERFREQ	(1 << CS11) /* == CPU_HZ/8 */
-#define JIFFIES_PER_SECOND	250000ul
-/* Convert constant(!) values to jiffies */
-#define MSEC_TO_JIFFIES(msec)	((uint32_t)((msec) * JIFFIES_PER_SECOND / 1000ul))
-#define USEC_TO_JIFFIES(usec)	((uint32_t)((usec) * JIFFIES_PER_SECOND / 1000000ul))
-/* Convert constant(!) time values. */
-#define USEC_TO_MSEC(usec)	((uint32_t)((usec) / 1000ul))
-#define MSEC_TO_USEC(msec)	((uint32_t)((msec) * 1000ul))
+/* System timer calibration. */
+#if CPU_HZ == MHz(20)
+# define SYSTIMER_TIMERFREQ	(1 << CS11) /* == CPU_HZ/8 */
+# define JIFFIES_PER_SECOND	U64(2500000)
+#elif CPU_HZ == MHz(16)
+# define SYSTIMER_TIMERFREQ	(1 << CS11) /* == CPU_HZ/8 */
+# define JIFFIES_PER_SECOND	U64(2000000)
+#else
+# error "No timer calibration for the selected CPU frequency available."
+#endif
+/* Convert values to jiffies. (Expensive on non-const values!) */
+#define MSEC_TO_JIFFIES(msec)	U32(U64(msec) * JIFFIES_PER_SECOND / U64(1000))
+#define USEC_TO_JIFFIES(usec)	U32(U64(usec) * JIFFIES_PER_SECOND / U64(1000000))
+/* Convert time values. (Expensive on non-const values!) */
+#define USEC_TO_MSEC(usec)	U32(U64(usec) / U64(1000))
+#define MSEC_TO_USEC(msec)	U32(U64(msec) * U64(1000))
 
 /* Upper 16-bit half of the jiffies counter.
  * The lower half is the hardware timer counter.
