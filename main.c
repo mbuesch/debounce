@@ -13,8 +13,8 @@
 #include <avr/interrupt.h>
 #include <avr/wdt.h>
 
-//#define CPU_HZ			MHz(20)
-#define CPU_HZ			MHz(16)
+#define CPU_HZ			MHz(20)
+//#define CPU_HZ			MHz(16)
 
 
 #define ARRAY_SIZE(x)		(sizeof(x) / sizeof((x)[0]))
