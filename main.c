@@ -20,6 +20,11 @@
 #define ARRAY_SIZE(x)		(sizeof(x) / sizeof((x)[0]))
 #define MHz(hz)			(1000000ul * (hz))
 
+/* Memory barrier.
+ * The CPU doesn't have runtime reordering, so we just
+ * need a compiler memory clobber. */
+#define mb()			__asm__ __volatile__("" : : : "memory")
+
 typedef _Bool			bool;
 
 
@@ -175,14 +180,10 @@ static void setup_jiffies(void)
 	TCCR1B = SYSTIMER_TIMERFREQ; /* Speed */
 }
 
-static inline uint32_t get_jiffies(void)
-{
-	return (TCNT1 | jiffies_high16);
-}
-
 //TODO: We could probably do this with the overflow IRQ.
-static inline void jiffies_maintanance(void)
+static inline bool jiffies_maintanance(void)
 {
+	bool overflow = 0;
 	uint16_t low16;
 	static uint16_t last_low16;
 
@@ -195,8 +196,29 @@ static inline void jiffies_maintanance(void)
 	if (low16 < last_low16) {
 		/* Carry detected */
 		jiffies_high16 += 0x10000ul;
+		overflow = 1;
 	}
 	last_low16 = low16;
+
+	return overflow;
+}
+
+static uint32_t get_jiffies(void)
+{
+	uint32_t low, high;
+
+	/* Protect against (unlikely) overflow-while-read. */
+	jiffies_maintanance();
+	while (1) {
+		mb();
+		low = TCNT1;
+		high = jiffies_high16;
+		mb();
+		if (!jiffies_maintanance())
+			break; /* No overflow */
+	}
+
+	return (low | high);
 }
 
 /* Put a 5ms signal onto the test pin. */
