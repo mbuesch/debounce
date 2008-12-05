@@ -275,6 +275,16 @@ int main(void)
 {
 	cli();
 
+//FIXME
+#if 0
+	/* Check if we had a major hardware fault. */
+	if ((MCUSR & (1 << WDRF)) ||
+	    (MCUSR & (1 << BORF))) {
+		emergency_shutdown();
+		while (1);
+	}
+#endif
+
 #if !DEBUG
 	wdt_enable(WDTO_500MS);
 #endif
