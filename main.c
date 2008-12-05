@@ -376,7 +376,7 @@ int main(void)
 	wdt_reset();
 
 	setup_jiffies();
-	jiffies_test();
+//	jiffies_test();
 	setup_ports();
 
 	scan_input_pins();
