@@ -20,6 +20,11 @@
 #define ARRAY_SIZE(x)		(sizeof(x) / sizeof((x)[0]))
 #define MHz(hz)			(1000000ul * (hz))
 
+/* Compat */
+#ifdef MCUCSR
+# define MCUSR	MCUCSR
+#endif
+
 /* Memory barrier.
  * The CPU doesn't have runtime reordering, so we just
  * need a compiler memory clobber. */
@@ -229,6 +234,7 @@ static inline void jiffies_test(void)
 	now = get_jiffies();
 	next = now + MSEC_TO_JIFFIES(5);
 	while (1) {
+		wdt_reset();
 		jiffies_maintanance();
 		now = get_jiffies();
 		if (time_after(now, next)) {
@@ -355,19 +361,24 @@ static void scan_input_pins(void)
 	}
 }
 
+static void hardware_fault(void)
+{
+	emergency_shutdown();
+	while (1);
+}
+
 int main(void)
 {
 	cli();
 
-//FIXME
-#if 0
 	/* Check if we had a major hardware fault. */
-	if ((MCUSR & (1 << WDRF)) ||
-	    (MCUSR & (1 << BORF))) {
-		emergency_shutdown();
-		while (1);
+	if (!(MCUSR & (1 << PORF))) {
+		if (MCUSR & (1 << WDRF))
+			hardware_fault(); /* Watchdog triggered */
+		if (MCUSR & (1 << BORF))
+			hardware_fault(); /* Brown-out */
 	}
-#endif
+	MCUSR = 0;
 
 	TIMER_TEST_DDR |= (1 << TIMER_TEST_BIT);
 #if !DEBUG
