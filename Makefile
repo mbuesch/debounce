@@ -68,7 +68,7 @@ writefuse:
 	 -c $(PROGRAMMER) -P $(PROGPORT) -q -q \
 	 -U lfuse:w:$(LFUSE):m \
 	 -U hfuse:w:$(HFUSE):m
-	 -U efuse:w:$(EFUSE):m
+#	 -U efuse:w:$(EFUSE):m
 
 clean:
 	-rm -f *~ *.o $(BIN)
