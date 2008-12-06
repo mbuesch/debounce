@@ -347,14 +347,9 @@ static void scan_one_input_pin(struct connection *conn)
 
 	/* Get the input state */
 	hw_input_asserted = (MMIO8(conn->in.input_pin) & BITMASK(conn->in.input_bit));
-	if (conn->in.flags & INPUT_PULLUP) {
-		/* With pullup the logical state is flipped */
+	/* The hw input state meaning changes, if PULLUP xor INVERT is used.*/
+	if (!!(conn->in.flags & INPUT_PULLUP) ^ !!(conn->in.flags & INPUT_INVERT))
 		hw_input_asserted = !hw_input_asserted;
-	}
-	if (conn->in.flags & INPUT_INVERT) {
-		/* User requested invert */
-		hw_input_asserted = !hw_input_asserted;
-	}
 
 	if (conn->input_is_asserted) {
 		/* Signal currently is asserted in software.
