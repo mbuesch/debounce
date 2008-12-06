@@ -16,6 +16,11 @@
 #define CPU_HZ			MHz(20)
 //#define CPU_HZ			MHz(16)
 
+#define __stringify(x)		#x
+#define stringify(x)		__stringify(x)
+
+#define likely(x)		__builtin_expect(!!(x), 1)
+#define unlikely(x)		__builtin_expect(!!(x), 0)
 
 #define ARRAY_SIZE(x)		(sizeof(x) / sizeof((x)[0]))
 #define MHz(hz)			(1000000ul * (hz))
@@ -192,15 +197,43 @@ static void setup_jiffies(void)
 	TIMSK1 |= (1 << TOIE1); /* Overflow IRQ */
 }
 
+/* Timer 1 overflow IRQ handler.
+ * This handler is executed on overflow of the (low) hardware part of
+ * the jiffies counter. It does only add 0x10000 to the 32bit software
+ * counter. So it basically adds 1 to the high 16bit software part of
+ * the counter. */
+#define ADD_HIGH_JIFFY_ASM \
+"	push r24			\n"\
+"	push r25			\n"\
+"	lds r24, jiffies_high16 + 2	\n"\
+"	lds r25, jiffies_high16 + 3	\n"\
+"	adiw r24, 1			\n"\
+"	sts jiffies_high16 + 2, r24	\n"\
+"	sts jiffies_high16 + 3, r25	\n"\
+"	pop r25				\n"\
+"	pop r24				\n"
+
+#define JIFFY_ISR_NAME	stringify(TIMER1_OVF_vect)
+__asm__(
+".text					\n"
+".global " JIFFY_ISR_NAME "		\n"
+JIFFY_ISR_NAME ":			\n"
+"	push r0				\n"
+"	in r0, __SREG__			\n"
+	ADD_HIGH_JIFFY_ASM
+"	out __SREG__, r0		\n"
+"	pop r0				\n"
+"	reti				\n"
+".previous				\n"
+);
+
+/* Does the same as the jiffy overflow ISR, but can be called
+ * from arbitrary code. IRQs must be disabled when calling! */
 static inline void handle_jiffies_low16_overflow(void)
 {
-	jiffies_high16 += 0x10000ul;
+	__asm__ __volatile__(ADD_HIGH_JIFFY_ASM : : : "memory");
 }
 
-ISR(TIMER1_OVF_vect)
-{
-	handle_jiffies_low16_overflow();
-}
 
 static uint32_t get_jiffies(void)
 {
@@ -210,7 +243,7 @@ static uint32_t get_jiffies(void)
 	/* We protect against (unlikely) overflow-while-read. */
 	cli();
 	while (1) {
-		if (TIFR1 & (1 << TOV1)) {
+		if (unlikely(TIFR1 & (1 << TOV1))) {
 			handle_jiffies_low16_overflow();
 			TIFR1 |= (1 << TOV1); /* Clear it */
 		}
@@ -218,7 +251,7 @@ static uint32_t get_jiffies(void)
 		low = TCNT1;
 		high = jiffies_high16;
 		mb();
-		if (!(TIFR1 & (1 << TOV1)))
+		if (likely(!(TIFR1 & (1 << TOV1))))
 			break; /* No overflow */
 	}
 	sei();
