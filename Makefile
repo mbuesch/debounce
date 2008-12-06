@@ -19,7 +19,7 @@ CFLAGS		+= -DDEBUG=$(DEBUG) -DTARGET=$(TARGET)
 
 # The fuse bits
 LFUSE	= 0xE0
-HFUSE	= 0xDD
+HFUSE	= 0xDF
 EFUSE	= 0xF9
 
 OBJECTS = main.o
