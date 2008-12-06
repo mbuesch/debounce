@@ -238,7 +238,7 @@ static inline void jiffies_test(void)
 		wdt_reset();
 		now = get_jiffies();
 		if (time_after(now, next)) {
-			TIMER_TEST_PORT ^= (1 << TIMER_TEST_BIT);
+			TEST_PORT ^= (1 << TEST_BIT);
 			next = now + MSEC_TO_JIFFIES(5);
 		}
 	}
@@ -373,12 +373,16 @@ static void scan_input_pins(void)
 static void hardware_fault(void)
 {
 	emergency_shutdown();
+	/* Pull test port high for failure indication. */
+	TEST_PORT |= (1 << TEST_BIT);
 	while (1);
 }
 
 int main(void)
 {
 	cli();
+	TEST_DDR |= (1 << TEST_BIT);
+	TEST_PORT &= ~(1 << TEST_BIT);
 
 	/* Check if we had a major hardware fault. */
 	if (!(MCUSR & (1 << PORF))) {
@@ -389,7 +393,6 @@ int main(void)
 	}
 	MCUSR = 0;
 
-	TIMER_TEST_DDR |= (1 << TIMER_TEST_BIT);
 #if !DEBUG
 	wdt_enable(WDTO_500MS);
 #endif

@@ -58,10 +58,10 @@ static void emergency_shutdown(void)
 	PORTC &= ~(1 << 1);
 }
 
-/* Pin for timer testing. */
-#define TIMER_TEST_PORT		PORTB
-#define TIMER_TEST_DDR		DDRB
-#define TIMER_TEST_BIT		1
+/* Pin for debugging. */
+#define TEST_PORT		PORTB
+#define TEST_DDR		DDRB
+#define TEST_BIT		1
 
 /* Debounce timing. */
 
