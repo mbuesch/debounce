@@ -183,11 +183,8 @@ struct connection {
 #define time_before(a, b)	time_after(b, a)
 
 /* Upper 16-bit half of the jiffies counter.
- * The lower half is the hardware timer counter.
- * We keep this in a 32bit variable to avoid the need for bitshifting
- * in get_jiffies(). (Bitshift>1 is expensive on AVR).
- * So the lower 16 bits of jiffies_high16 will always be zero. */
-static uint32_t jiffies_high16;
+ * The lower half is the hardware timer counter. */
+static uint16_t jiffies_high16;
 
 static void setup_jiffies(void)
 {
@@ -205,11 +202,11 @@ static void setup_jiffies(void)
 #define ADD_HIGH_JIFFY_ASM \
 "	push r24			\n"\
 "	push r25			\n"\
-"	lds r24, jiffies_high16 + 2	\n"\
-"	lds r25, jiffies_high16 + 3	\n"\
+"	lds r24, jiffies_high16 + 0	\n"\
+"	lds r25, jiffies_high16 + 1	\n"\
 "	adiw r24, 1			\n"\
-"	sts jiffies_high16 + 2, r24	\n"\
-"	sts jiffies_high16 + 3, r25	\n"\
+"	sts jiffies_high16 + 0, r24	\n"\
+"	sts jiffies_high16 + 1, r25	\n"\
 "	pop r25				\n"\
 "	pop r24				\n"
 
@@ -238,7 +235,7 @@ static inline void handle_jiffies_low16_overflow(void)
 static uint32_t get_jiffies(void)
 {
 	uint16_t low;
-	uint32_t high;
+	uint16_t high;
 
 	/* We protect against (unlikely) overflow-while-read. */
 	cli();
@@ -256,7 +253,8 @@ static uint32_t get_jiffies(void)
 	}
 	sei();
 
-	return (low | high);
+	/* This 16bit shift basically is for free. */
+	return ((((uint32_t)high) << 16) | low);
 }
 
 /* Put a 5ms signal onto the test pin. */
