@@ -244,15 +244,25 @@ static inline void jiffies_test(void)
 	}
 }
 
+/* We can keep this in SRAM. It's not that big. */
+static const uint8_t bit2mask_lt[] = {
+	0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80,
+};
+
+/* Convert a bit-number to a bit-mask.
+ * Only valid for bitnr<=7.
+ */
+#define BITMASK(bitnr)	(__builtin_constant_p(bitnr) ? (1 << (bitnr)) : bit2mask_lt[(bitnr)])
+
 /* Set the hardware state of an output pin. */
 static inline void output_hw_set(struct output_pin *out, bool state)
 {
 	if (out->flags & OUTPUT_INVERT)
 		state = !state;
 	if (state)
-		MMIO8(out->output_port) |= (1 << out->output_bit);
+		MMIO8(out->output_port) |= BITMASK(out->output_bit);
 	else
-		MMIO8(out->output_port) &= ~(1 << out->output_bit);
+		MMIO8(out->output_port) &= ~BITMASK(out->output_bit);
 }
 
 /* Increment the trigger level of an output. */
@@ -281,14 +291,14 @@ static void setup_ports(void)
 		conn = &(connections[i]);
 
 		/* Init DDR registers */
-		MMIO8(conn->in.input_ddr) &= ~(1 << conn->in.input_bit);
-		MMIO8(conn->out->output_ddr) |= (1 << conn->out->output_bit);
+		MMIO8(conn->in.input_ddr) &= ~BITMASK(conn->in.input_bit);
+		MMIO8(conn->out->output_ddr) |= BITMASK(conn->out->output_bit);
 
 		/* Enable/Disable pullup */
 		if (conn->in.flags & INPUT_PULLUP)
-			MMIO8(conn->in.input_port) |= (1 << conn->in.input_bit);
+			MMIO8(conn->in.input_port) |= BITMASK(conn->in.input_bit);
 		else
-			MMIO8(conn->in.input_port) &= ~(1 << conn->in.input_bit);
+			MMIO8(conn->in.input_port) &= ~BITMASK(conn->in.input_bit);
 
 		/* Disable output signal */
 		conn->out->level = 0;
@@ -305,7 +315,7 @@ static void scan_one_input_pin(struct connection *conn)
 	uint32_t now = get_jiffies();
 
 	/* Get the input state */
-	hw_input_asserted = (MMIO8(conn->in.input_pin) & (1 << conn->in.input_bit));
+	hw_input_asserted = (MMIO8(conn->in.input_pin) & BITMASK(conn->in.input_bit));
 	if (conn->in.flags & INPUT_PULLUP) {
 		/* With pullup the logical state is flipped */
 		hw_input_asserted = !hw_input_asserted;
