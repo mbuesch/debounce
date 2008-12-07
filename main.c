@@ -445,8 +445,11 @@ int main(void)
 	if (!(MCUSR & (1 << PORF))) {
 		if (MCUSR & (1 << WDRF))
 			hardware_fault(); /* Watchdog triggered */
+		//FIXME disable this for now.
+#if 0
 		if (MCUSR & (1 << BORF))
 			hardware_fault(); /* Brown-out */
+#endif
 	}
 	MCUSR = 0;
 
