@@ -212,14 +212,6 @@ struct connection {
  * The lower half is the hardware timer counter. */
 static uint16_t jiffies_high16;
 
-static void setup_jiffies(void)
-{
-	/* Initialize the system timer */
-	TCCR1A = 0;
-	TCCR1B = SYSTIMER_TIMERFREQ; /* Speed */
-	TIMSK1 |= (1 << TOIE1); /* Overflow IRQ */
-}
-
 /* Timer 1 overflow IRQ handler.
  * This handler is executed on overflow of the (low) hardware part of
  * the jiffies counter. It does only add 0x10000 to the 32bit software
@@ -285,9 +277,11 @@ static uint32_t __attribute__((noinline)) get_jiffies(void)
 }
 
 /* Put a 5ms signal onto the test pin. */
-static inline void jiffies_test(void)
+static void jiffies_test(void)
 {
 	uint32_t now, next;
+
+	return; /* Disabled */
 
 	sei();
 	now = get_jiffies();
@@ -300,6 +294,15 @@ static inline void jiffies_test(void)
 			next = now + MSEC_TO_JIFFIES(5);
 		}
 	}
+}
+
+static void setup_jiffies(void)
+{
+	/* Initialize the system timer */
+	TCCR1A = 0;
+	TCCR1B = SYSTIMER_TIMERFREQ; /* Speed */
+	TIMSK1 |= (1 << TOIE1); /* Overflow IRQ */
+	jiffies_test();
 }
 
 /* We can keep this in SRAM. It's not that big. */
@@ -441,15 +444,17 @@ int main(void)
 	TEST_DDR |= (1 << TEST_BIT);
 	TEST_PORT &= ~(1 << TEST_BIT);
 
+	setup_jiffies();
+	setup_ports();
+
+//FIXME disable this for now.
+#if 0
 	/* Check if we had a major hardware fault. */
 	if (!(MCUSR & (1 << PORF))) {
 		if (MCUSR & (1 << WDRF))
 			hardware_fault(); /* Watchdog triggered */
-		//FIXME disable this for now.
-#if 0
 		if (MCUSR & (1 << BORF))
 			hardware_fault(); /* Brown-out */
-#endif
 	}
 	MCUSR = 0;
 
@@ -457,10 +462,7 @@ int main(void)
 	wdt_enable(WDTO_500MS);
 #endif
 	wdt_reset();
-
-	setup_jiffies();
-//	jiffies_test();
-	setup_ports();
+#endif
 
 	sei();
 	scan_input_pins();
