@@ -258,7 +258,7 @@ static inline void handle_jiffies_low16_overflow(void)
 	__asm__ __volatile__(ADD_HIGH_JIFFY_ASM : : : "memory");
 }
 
-static uint32_t get_jiffies(void)
+static inline uint32_t get_jiffies(void)
 {
 	uint16_t low;
 	uint16_t high;
@@ -366,10 +366,9 @@ static void setup_ports(void)
 	}
 }
 
-static void scan_one_input_pin(struct connection *conn)
+static void scan_one_input_pin(struct connection *conn, uint32_t now)
 {
 	uint8_t hw_input_asserted;
-	uint32_t now = get_jiffies();
 
 	/* Get the input state */
 	hw_input_asserted = (MMIO8(conn->in.input_pin) & BITMASK(conn->in.input_bit));
@@ -413,12 +412,17 @@ static void scan_one_input_pin(struct connection *conn)
 static void scan_input_pins(void)
 {
 	uint8_t i;
+	uint32_t now;
 
 	while (1) {
+		now = get_jiffies();
 		for (i = 0; i < ARRAY_SIZE(connections); i++) {
-			scan_one_input_pin(&(connections[i]));
+			scan_one_input_pin(&(connections[i]), now);
 			wdt_reset();
 		}
+#if 0
+		TEST_PORT ^= (1 << TEST_BIT);
+#endif
 	}
 }
 
