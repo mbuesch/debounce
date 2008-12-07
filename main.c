@@ -225,16 +225,17 @@ static void setup_jiffies(void)
  * the jiffies counter. It does only add 0x10000 to the 32bit software
  * counter. So it basically adds 1 to the high 16bit software part of
  * the counter. */
+
+/* ADD_HIGH_JIFFY_ASM does:  jiffies_high16 += 1 */
 #define ADD_HIGH_JIFFY_ASM \
-"	push r24			\n"\
-"	push r25			\n"\
-"	lds r24, jiffies_high16 + 0	\n"\
-"	lds r25, jiffies_high16 + 1	\n"\
-"	adiw r24, 1			\n"\
-"	sts jiffies_high16 + 0, r24	\n"\
-"	sts jiffies_high16 + 1, r25	\n"\
-"	pop r25				\n"\
-"	pop r24				\n"
+"	push r16			\n"\
+"	lds r16, jiffies_high16 + 0	\n"\
+"	subi r16, lo8(-1)		\n"\
+"	sts jiffies_high16 + 0, r16	\n"\
+"	lds r16, jiffies_high16 + 1	\n"\
+"	sbci r16, hi8(-1)		\n"\
+"	sts jiffies_high16 + 1, r16	\n"\
+"	pop r16				\n"
 
 #define JIFFY_ISR_NAME	stringify(TIMER1_OVF_vect)
 __asm__(
@@ -256,7 +257,6 @@ static inline void handle_jiffies_low16_overflow(void)
 {
 	__asm__ __volatile__(ADD_HIGH_JIFFY_ASM : : : "memory");
 }
-
 
 static uint32_t get_jiffies(void)
 {
