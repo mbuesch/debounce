@@ -258,7 +258,8 @@ static inline void handle_jiffies_low16_overflow(void)
 	__asm__ __volatile__(ADD_HIGH_JIFFY_ASM : : : "memory");
 }
 
-static uint32_t get_jiffies(void)
+/* FIXME: This breaks if it gets inlined. Check why. */
+static uint32_t __attribute__((noinline)) get_jiffies(void)
 {
 	uint16_t low;
 	uint16_t high;
