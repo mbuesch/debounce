@@ -65,11 +65,7 @@ static void emergency_shutdown(void)
 
 /* Debounce timing. */
 
-/* Dwell-time: Keep the output-pin asserted for this time
- *             after the input-pin was last successfully detected
- *             in asserted state. */
-#define DEBOUNCE_DWELL_TIME	MSEC_TO_USEC(100) /* microseconds */
-/* Active-time: The input pin must stay at least this time
- *              physically asserted to switch to asserted state
- *              in software. */
-#define DEBOUNCE_ACTIVE_TIME	150 /* microseconds */
+#define DEBOUNCE_DWELL_TIME	MSEC_TO_USEC(100)
+/* We tolerate a joint move of max 5 microns for the ACTIVE_TIME.
+ * That's good enough for limits and refs. */
+#define DEBOUNCE_ACTIVE_TIME	200 /* microseconds */

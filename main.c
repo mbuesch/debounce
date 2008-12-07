@@ -8,6 +8,32 @@
  * Licensed under the GNU General Public License version 2 or later.
  */
 
+/* What is DWELL_TIME and what is ACTIVE_TIME?
+ * Consider we have one input signal and one output signal.
+ * The timeouts look like this:
+ *
+ *          ---------------
+ *          |             |
+ * input    |             |
+ * ----------             ----------
+ *
+ *                ---------------
+ *                |             |
+ * output         |             |
+ * ----------------             -----
+ *
+ *          ^--v--^       ^--v--^
+ *             |             |
+ *   ACTIVE_TIME             DWELL_TIME
+ *
+ * So the ACTIVE_TIME is the time for the output to respond to the input
+ * signal and the DWELL_TIME is the additional dwell time the output stays
+ * active after the input got deasserted.
+ * ACTIVE_TIME should be fairly low; in the range of a few microseconds. It's
+ * used for noise-cancelling.
+ * Units for ACTIVE_TIME and DWELL_TIME are microseconds.
+ */
+
 #include <stdint.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
