@@ -18,8 +18,11 @@ CFLAGS		+= -DDEBUG=$(DEBUG) -DTARGET=$(TARGET)
 
 
 # The fuse bits
+# Ext Clock, Startup 6CK/14CK + 65ms
+# BOD 4.3V
+# SPI enabled
 LFUSE	= 0xE0
-HFUSE	= 0xDF
+HFUSE	= 0xDC
 EFUSE	= 0xF9
 
 OBJECTS = main.o

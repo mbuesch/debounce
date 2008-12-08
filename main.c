@@ -430,10 +430,11 @@ static void scan_input_pins(void)
 	}
 }
 
-static void hardware_fault(void)
+static void major_fault(void)
 {
 	emergency_shutdown();
 	/* Pull test port high for failure indication. */
+	TEST_DDR |= (1 << TEST_BIT);
 	TEST_PORT |= (1 << TEST_BIT);
 	while (1);
 }
@@ -447,14 +448,10 @@ int main(void)
 	setup_jiffies();
 	setup_ports();
 
-//FIXME disable this for now.
-#if 0
-	/* Check if we had a major hardware fault. */
+	/* Check if we had a major fault. */
 	if (!(MCUSR & (1 << PORF))) {
 		if (MCUSR & (1 << WDRF))
-			hardware_fault(); /* Watchdog triggered */
-		if (MCUSR & (1 << BORF))
-			hardware_fault(); /* Brown-out */
+			major_fault(); /* Watchdog triggered */
 	}
 	MCUSR = 0;
 
@@ -462,7 +459,6 @@ int main(void)
 	wdt_enable(WDTO_500MS);
 #endif
 	wdt_reset();
-#endif
 
 	sei();
 	scan_input_pins();
