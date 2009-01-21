@@ -448,6 +448,7 @@ int main(void)
 	setup_jiffies();
 	setup_ports();
 
+#if 0
 	/* Check if we had a major fault. */
 	if (!(MCUSR & (1 << PORF))) {
 		if (MCUSR & (1 << WDRF))
@@ -459,6 +460,7 @@ int main(void)
 	wdt_enable(WDTO_500MS);
 #endif
 	wdt_reset();
+#endif
 
 	sei();
 	scan_input_pins();

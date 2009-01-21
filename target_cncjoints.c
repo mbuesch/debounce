@@ -12,39 +12,39 @@ static DEF_OUTPUT(C, 0, NONE);		/* Z joint REF */
 
 static struct connection connections[] = {
 	{ /* X+ joint limit input --> Joint limits common output */
-		DEF_INPUT(D, 0, INPUT_PULLUP),
+		DEF_INPUT(D, 0, NONE),
 		.out = &output_pin_C5,
 	},
 	{ /* X- joint limit input --> Joint limits common output */
-		DEF_INPUT(D, 1, INPUT_PULLUP),
+		DEF_INPUT(D, 1, NONE),
 		.out = &output_pin_C5,
 	},
 	{ /* X joint REF input --> X joint REF output */
-		DEF_INPUT(D, 2, INPUT_PULLUP),
+		DEF_INPUT(D, 2, NONE),
 		.out = &output_pin_C4,
 	},
 	{ /* Y+ joint limit input --> Joint limits common output */
-		DEF_INPUT(D, 3, INPUT_PULLUP),
+		DEF_INPUT(D, 3, NONE),
 		.out = &output_pin_C3,
 	},
 	{ /* Y- joint limit input --> Joint limits common output */
-		DEF_INPUT(D, 4, INPUT_PULLUP),
+		DEF_INPUT(D, 4, NONE),
 		.out = &output_pin_C3,
 	},
 	{ /* Y joint REF input --> Y joint REF output */
-		DEF_INPUT(D, 5, INPUT_PULLUP),
+		DEF_INPUT(D, 5, NONE),
 		.out = &output_pin_C2,
 	},
 	{ /* Z+ joint limit input --> Joint limits common output */
-		DEF_INPUT(D, 6, INPUT_PULLUP),
+		DEF_INPUT(D, 6, NONE),
 		.out = &output_pin_C1,
 	},
 	{ /* Z- joint limit input --> Joint limits common output */
-		DEF_INPUT(D, 7, INPUT_PULLUP),
+		DEF_INPUT(D, 7, NONE),
 		.out = &output_pin_C1,
 	},
 	{ /* Z joint REF input --> Z joint REF output */
-		DEF_INPUT(B, 0, INPUT_PULLUP),
+		DEF_INPUT(B, 0, NONE),
 		.out = &output_pin_C0,
 	},
 };

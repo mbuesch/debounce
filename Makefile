@@ -11,7 +11,7 @@ CC		= avr-gcc
 OBJCOPY		= avr-objcopy
 SIZE		= avr-size
 
-CFLAGS		= -mmcu=$(ARCH) -std=c99 -g0 -O2 -fomit-frame-pointer -Wall -fpack-struct
+CFLAGS		= -mmcu=$(ARCH) -std=c99 -O2 -Wall
 CFLAGS		+= "-Dinline=inline __attribute__((__always_inline__))"
 TARGET		?= 0 # default
 CFLAGS		+= -DDEBUG=$(DEBUG) -DTARGET=$(TARGET)
@@ -19,10 +19,10 @@ CFLAGS		+= -DDEBUG=$(DEBUG) -DTARGET=$(TARGET)
 
 # The fuse bits
 # Ext Clock, Startup 6CK/14CK + 65ms
-# BOD 4.3V
+# BOD off
 # SPI enabled
 LFUSE	= 0xE0
-HFUSE	= 0xDC
+HFUSE	= 0xDF
 EFUSE	= 0xF9
 
 OBJECTS = main.o
