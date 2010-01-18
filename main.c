@@ -34,6 +34,8 @@
  * Units for ACTIVE_TIME and DWELL_TIME are microseconds.
  */
 
+#include "util.h"
+
 #include <stdint.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -42,13 +44,6 @@
 #define CPU_HZ			MHz(20)
 //#define CPU_HZ			MHz(16)
 
-#define __stringify(x)		#x
-#define stringify(x)		__stringify(x)
-
-#define likely(x)		__builtin_expect(!!(x), 1)
-#define unlikely(x)		__builtin_expect(!!(x), 0)
-
-#define ARRAY_SIZE(x)		(sizeof(x) / sizeof((x)[0]))
 #define MHz(hz)			(1000000ul * (hz))
 
 /* Compat */
@@ -61,13 +56,6 @@
 #ifdef TIFR
 # define TIFR1		TIFR
 #endif
-
-/* Memory barrier.
- * The CPU doesn't have runtime reordering, so we just
- * need a compiler memory clobber. */
-#define mb()			__asm__ __volatile__("" : : : "memory")
-
-typedef _Bool			bool;
 
 
 /**
@@ -218,17 +206,6 @@ static uint16_t jiffies_high16;
  * counter. So it basically adds 1 to the high 16bit software part of
  * the counter. */
 
-/* ADD_HIGH_JIFFY_ASM does:  jiffies_high16 += 1 */
-#define ADD_HIGH_JIFFY_ASM \
-"	push r16			\n"\
-"	lds r16, jiffies_high16 + 0	\n"\
-"	subi r16, lo8(-1)		\n"\
-"	sts jiffies_high16 + 0, r16	\n"\
-"	lds r16, jiffies_high16 + 1	\n"\
-"	sbci r16, hi8(-1)		\n"\
-"	sts jiffies_high16 + 1, r16	\n"\
-"	pop r16				\n"
-
 #define JIFFY_ISR_NAME	stringify(TIMER1_OVF_vect)
 __asm__(
 ".text					\n"
@@ -236,31 +213,30 @@ __asm__(
 JIFFY_ISR_NAME ":			\n"
 "	push r0				\n"
 "	in r0, __SREG__			\n"
-	ADD_HIGH_JIFFY_ASM
+"	push r16			\n"
+"	lds r16, jiffies_high16 + 0	\n"
+"	subi r16, lo8(-1)		\n"
+"	sts jiffies_high16 + 0, r16	\n"
+"	lds r16, jiffies_high16 + 1	\n"
+"	sbci r16, hi8(-1)		\n"
+"	sts jiffies_high16 + 1, r16	\n"
+"	pop r16				\n"
 "	out __SREG__, r0		\n"
 "	pop r0				\n"
 "	reti				\n"
 ".previous				\n"
 );
 
-/* Does the same as the jiffy overflow ISR, but can be called
- * from arbitrary code. IRQs must be disabled when calling! */
-static inline void handle_jiffies_low16_overflow(void)
-{
-	__asm__ __volatile__(ADD_HIGH_JIFFY_ASM : : : "memory");
-}
-
-/* FIXME: This breaks if it gets inlined. Check why. */
-static uint32_t __attribute__((noinline)) get_jiffies(void)
+static uint32_t get_jiffies(void)
 {
 	uint16_t low;
 	uint16_t high;
 
 	/* We protect against (unlikely) overflow-while-read. */
-	cli();
+	irq_disable();
 	while (1) {
 		if (unlikely(TIFR1 & (1 << TOV1))) {
-			handle_jiffies_low16_overflow();
+			jiffies_high16++;
 			TIFR1 |= (1 << TOV1); /* Clear it */
 		}
 		mb();
@@ -270,7 +246,7 @@ static uint32_t __attribute__((noinline)) get_jiffies(void)
 		if (likely(!(TIFR1 & (1 << TOV1))))
 			break; /* No overflow */
 	}
-	sei();
+	irq_enable();
 
 	/* This 16bit shift basically is for free. */
 	return ((((uint32_t)high) << 16) | low);
@@ -283,7 +259,7 @@ static void jiffies_test(void)
 
 	return; /* Disabled */
 
-	sei();
+	irq_enable();
 	now = get_jiffies();
 	next = now + MSEC_TO_JIFFIES(5);
 	while (1) {
@@ -441,7 +417,7 @@ static void major_fault(void)
 
 int main(void)
 {
-	cli();
+	irq_disable();
 	TEST_DDR |= (1 << TEST_BIT);
 	TEST_PORT &= ~(1 << TEST_BIT);
 
@@ -462,6 +438,6 @@ int main(void)
 	wdt_reset();
 #endif
 
-	sei();
+	irq_enable();
 	scan_input_pins();
 }

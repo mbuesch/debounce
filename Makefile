@@ -87,6 +87,7 @@ $(HEX): $(BIN)
 #			 --change-section-lma .eeprom=0 -O ihex $(BIN) $(EEP)
 	$(QUIET_SIZE) $(BIN)
 	$(QUIET_READELF) -S $(BIN) | egrep '(Name|text|eeprom|data|bss)'
+	@echo Built target $(TARGET)
 
 avrdude:
 	$(AVRDUDE) -B $(AVRDUDE_SPEED) -p $(AVRDUDE_ARCH) \
